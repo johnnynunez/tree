@@ -1,0 +1,44 @@
+name: Native pinned CP312 ARM64
+on:
+  push:
+    branches: [ci/native-bindings-cp312-pin-20261011]
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: windows-11-arm
+    timeout-minutes: 25
+    env:
+      CMAKE_GENERATOR_PLATFORM: ARM64
+      CMAKE_BUILD_PARALLEL_LEVEL: '4'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: google-deepmind/tree
+          ref: 9330c9565222ca83905aabe9c3ad737037328269
+          path: source
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Build, audit, install into fresh venv and test
+        shell: pwsh
+        run: |
+          $env:PIP_CACHE_DIR = "$env:RUNNER_TEMP/native-pip-cache"
+          $env:NUGET_PACKAGES = "$env:RUNNER_TEMP/native-nuget"
+          $env:NUGET_HTTP_CACHE_PATH = "$env:RUNNER_TEMP/native-nuget-http"
+          $env:NUGET_PLUGINS_CACHE_PATH = "$env:RUNNER_TEMP/native-nuget-plugins"
+          $env:VIRTUALENV_OVERRIDE_APP_DATA = "$env:RUNNER_TEMP/native-virtualenv"
+          python ci/native_lane.py dm-tree 0.1.10 9330c9565222ca83905aabe9c3ad737037328269
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-dm-tree-0.1.10-cp312
+          path: ${{ runner.temp }}/native-evidence
+          if-no-files-found: error
